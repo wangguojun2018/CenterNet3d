@@ -1,0 +1,149 @@
+import torch
+from torch.nn import functional as F
+
+from mmdet3d.core import bbox3d2result, merge_aug_bboxes_3d
+from mmdet3d.ops import Voxelization
+from mmdet3d.models.middle_encoders import SparseEncoder_AUX
+from mmdet.models import DETECTORS
+from .single_stage import SingleStage3DDetector
+from ..import builder
+from mmdet3d.utils import draw_lidar,draw_gt_boxes3d
+
+@DETECTORS.register_module()
+class CenterNet3D(SingleStage3DDetector):
+    r"""`VoxelNet <https://arxiv.org/abs/1711.06396>`_ for 3D detection."""
+
+    def __init__(self,
+                 voxel_layer,
+                 voxel_encoder,
+                 middle_encoder,
+                 backbone,
+                 bbox_head=None,
+                 train_cfg=None,
+                 test_cfg=None,
+                 pretrained=None):
+        super(CenterNet3D, self).__init__(
+            backbone=backbone,
+            neck=None,
+            bbox_head=bbox_head,
+            train_cfg=train_cfg,
+            test_cfg=test_cfg,
+            pretrained=pretrained,
+        )
+        self.voxel_layer = Voxelization(**voxel_layer)
+        self.voxel_encoder = builder.build_voxel_encoder(voxel_encoder)
+        self.middle_encoder = builder.build_middle_encoder(middle_encoder)
+
+    def extract_feat(self, points, img_metas):
+        """Extract features from points."""
+        voxels, num_points, coors = self.voxelize(points)
+        voxel_features = self.voxel_encoder(voxels, num_points, coors)
+        batch_size = coors[-1, 0].item() + 1
+        point_misc=None
+        # xconv2=None
+        if isinstance(self.middle_encoder,SparseEncoder_AUX):
+            x,point_misc=self.middle_encoder(voxel_features, coors, batch_size)
+        else:
+            x= self.middle_encoder(voxel_features, coors, batch_size)
+        x = self.backbone(x)
+        # print("x shape",x[0].shape)
+        # if xconv2 is not None:
+        #     x=[x[0]+xconv2]
+        return x,point_misc
+
+    @torch.no_grad()
+    def voxelize(self, points):
+        """Apply hard voxelization to points."""
+        voxels, coors, num_points = [], [], []
+        for res in points:
+            res_voxels, res_coors, res_num_points = self.voxel_layer(res)
+            voxels.append(res_voxels)
+            coors.append(res_coors)
+            num_points.append(res_num_points)
+        voxels = torch.cat(voxels, dim=0)
+        num_points = torch.cat(num_points, dim=0)
+        coors_batch = []
+        for i, coor in enumerate(coors):
+            coor_pad = F.pad(coor, (1, 0), mode='constant', value=i)
+            coors_batch.append(coor_pad)
+        coors_batch = torch.cat(coors_batch, dim=0)
+        return voxels, num_points, coors_batch
+
+    def forward_train(self,
+                      points,
+                      img_metas,
+                      gt_bboxes_3d,
+                      gt_labels_3d,
+                      gt_bboxes_ignore=None):
+        """Training forward function.
+
+
+        Args:
+            points (list[torch.Tensor]): Point cloud of each sample.
+            img_metas (list[dict]): Meta information of each sample
+            gt_bboxes_3d (list[:obj:`BaseInstance3DBoxes`]): Ground truth
+                boxes for each sample.
+            gt_labels_3d (list[torch.Tensor]): Ground truth labels for
+                boxes of each sampole
+            gt_bboxes_ignore (list[torch.Tensor], optional): Ground truth
+                boxes to be ignored. Defaults to None.
+
+        Returns:
+            dict: Losses of each branch.
+        """
+
+        # print("points type is ",type(points),type(points[0]))
+        # print("img_metas")
+
+        # f = draw_lidar(points[0].cpu().numpy(), show=False)
+        # #
+        # gt_corners3d =gt_bboxes_3d[0].corners.cpu().numpy()
+        # f = draw_gt_boxes3d(gt_corners3d, f, draw_text=False, show=True)
+
+        x,point_misc = self.extract_feat(points, img_metas)
+
+        losses=dict()
+        if point_misc is not None:
+            aux_loss=self.middle_encoder.aux_loss(*point_misc,gt_bboxes=gt_bboxes_3d)
+            losses.update(aux_loss)
+        pred_dict = self.bbox_head(x)
+        head_loss= self.bbox_head.loss(pred_dict,gt_labels_3d,gt_bboxes_3d)
+        losses.update(head_loss)
+        return losses
+
+    def simple_test(self, points, img_metas, imgs=None, rescale=False):
+
+        """Test function without augmentaiton."""
+        x,_ = self.extract_feat(points, img_metas)
+        pred_dict = self.bbox_head(x)
+        bbox_list = self.bbox_head.get_bboxes(pred_dict,img_metas)
+        # print(len(bbox_list))
+        # print(bbox_list[0][3])
+        # print(type(bbox_list[0][0]))
+        bbox_results = [
+            bbox3d2result(bboxes, scores, labels,img_meta)
+            for bboxes, scores, labels, img_meta in bbox_list
+        ]
+        return bbox_results #list of dicts
+
+    def aug_test(self, points, img_metas, imgs=None, rescale=False):
+        """Test function with augmentaiton."""
+        feats = self.extract_feats(points, img_metas)
+
+        # only support aug_test for one sample
+        aug_bboxes = []
+        for x, img_meta in zip(feats, img_metas):
+            outs = self.bbox_head(x)
+            bbox_list = self.bbox_head.get_bboxes(
+                *outs, img_meta, rescale=rescale)
+            bbox_list = [
+                dict(boxes_3d=bboxes, scores_3d=scores, labels_3d=labels)
+                for bboxes, scores, labels in bbox_list
+            ]
+            aug_bboxes.append(bbox_list[0])
+
+        # after merging, bboxes will be rescaled to the original image size
+        merged_bboxes = merge_aug_bboxes_3d(aug_bboxes, img_metas,
+                                            self.bbox_head.test_cfg)
+
+        return merged_bboxes

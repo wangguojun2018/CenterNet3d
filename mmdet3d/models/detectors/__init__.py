@@ -8,9 +8,10 @@ from .parta2 import PartA2
 from .ssd3dnet import SSD3DNet
 from .votenet import VoteNet
 from .voxelnet import VoxelNet
-
+from .centernet3d import CenterNet3D
+# from .mvaf_net import MVAFNet
 __all__ = [
     'Base3DDetector', 'VoxelNet', 'DynamicVoxelNet', 'MVXTwoStageDetector',
     'DynamicMVXFasterRCNN', 'MVXFasterRCNN', 'PartA2', 'VoteNet', 'H3DNet',
-    'CenterPoint', 'SSD3DNet'
+    'CenterPoint', 'SSD3DNet','CenterNet3D'
 ]

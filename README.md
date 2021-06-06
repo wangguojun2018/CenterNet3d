@@ -5,7 +5,7 @@ Besides, our CenterNet3D is Non-Maximum Suppression free which makes it more eff
 our proposed CenterNet3D achieves competitive performance with other one stage anchor-based methods.
 
 ## Updates
-2020-08-26: CenterNet3D V1.1 is released!
+2021-06-06: CenterNet3D V1.1 is released!
 
 We develop an efficient keypoint-sensitive warping operation to align the confidences to the predicted bounding boxes
 

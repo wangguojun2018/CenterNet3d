@@ -1,100 +1,71 @@
-<div align="center">
-  <img src="resources/mmdet3d-logo.png" width="600"/>
-</div>
+## CenterNet3D: An Anchor free Object Detector for Autonomous Driving (Arxiv 2020) [\[paper\]](https://arxiv.org/abs/2007.07214)
+Based on the center point, we propose an anchor-free CenterNet3D Network that performs 3D object detection without anchors. 
+Our CenterNet3D uses keypoint estimation to find center points and directly regresses 3D bounding boxes. 
+Besides, our CenterNet3D is Non-Maximum Suppression free which makes it more efficient and simpler. On the KITTI benchmark, 
+our proposed CenterNet3D achieves competitive performance with other one stage anchor-based methods.
 
-[![docs](https://img.shields.io/badge/docs-latest-blue)](https://mmdetection3d.readthedocs.io/en/latest/)
-[![badge](https://github.com/open-mmlab/mmdetection3d/workflows/build/badge.svg)](https://github.com/open-mmlab/mmdetection3d/actions)
-[![codecov](https://codecov.io/gh/open-mmlab/mmdetection3d/branch/master/graph/badge.svg)](https://codecov.io/gh/open-mmlab/mmdetection3d)
-[![license](https://img.shields.io/github/license/open-mmlab/mmdetection3d.svg)](https://github.com/open-mmlab/mmdetection3d/blob/master/LICENSE)
+## Updates
+2020-08-26: CenterNet3D V1.1 is released!
 
+We develop an efficient keypoint-sensitive warping operation to align the confidences to the predicted bounding boxes
 
-**News**: We released the codebase v0.8.0.
+## Performance in KITTI validation set (50/50 split)
+```centernet3d.py```(epochs 25,batch size 2):
 
-Documentation: https://mmdetection3d.readthedocs.io/
+```
+Car AP(Average Precision)@0.70, 0.70, 0.70:
+bbox AP:90.65, 89.55, 88.85
+bev  AP:89.98, 87.99, 86.98
+3d   AP:89.02, 79.11, 77.76
+aos  AP:90.63, 89.39, 88.62
+Car AP(Average Precision)@0.70, 0.50, 0.50:
+bbox AP:90.65, 89.55, 88.85
+bev  AP:90.66, 89.76, 89.28
+3d   AP:90.66, 89.72, 89.20
+aos  AP:90.63, 89.39, 88.62
+```
 
-## Introduction
+## Demo
+[![Demo](https://github.com/wangguojun2018/CenterNet3d/blob/master/demo/example1.png)](https://www.bilibili.com/video/BV1W541147gH/)
 
-The master branch works with **PyTorch 1.3 to 1.6**.
+# Introduction
+![model](https://github.com/wangguojun2018/CenterNet3d/blob/master/demo/Outline_of_CenterNet3D.png)  
+Accurate and fast 3D object detection from point clouds is a key task in autonomous driving. Existing one-stage 3D object detection methods can achieve real-time performance, however, they are dominated by anchor-based detectors which are inefficient and require additional post-processing. In this paper, we eliminate anchors and model an object as a single point the center point of its bounding box. Based on the center point, we propose an anchor-free CenterNet3D Network that performs 3D object detection without anchors. Our CenterNet3D uses keypoint estimation to find center points and directly regresses 3D bounding boxes. However, because inherent sparsity of point clouds, 3D object center points are likely to be in empty space which makes it difficult to estimate accurate boundary. To solve this issue, we propose an auxiliary corner attention module to enforce the CNN backbone to pay more attention to object boundaries which is effective to obtain more accurate bounding boxes. Besides, our CenterNet3D is Non-Maximum Suppression free which makes it more efficient and simpler. On the KITTI benchmark, our proposed CenterNet3D achieves competitive performance with other one stage anchor-based methods which show the efficacy of our proposed center point representation.  
 
-MMDetection3D is an open source object detection toolbox based on PyTorch, towards the next-generation platform for general 3D detection. It is
-a part of the OpenMMLab project developed by [MMLab](http://mmlab.ie.cuhk.edu.hk/).
+# Installation
+1. Clone this repository.
+2. Our CenterNet3D is based on [mmdetection3d](https://github.com/open-mmlab/mmdetection3d), Please check [INSTALL.md](https://github.com/wangguojun2018/CenterNet3d/blob/master/docs/install.md) for installation instructions.
 
-![demo image](resources/mmdet3d_outdoor_demo.gif)
+# Train
+To train the CenterNet3D, run the following command:
+```
+cd CenterNet3d
+python tools/train.py ./configs/centernet3d.py
+```
 
-### Major features
-
-- **Support multi-modality/single-modality detectors out of box**
-
-  It directly supports multi-modality/single-modality detectors including MVXNet, VoteNet, PointPillars, etc.
-
-- **Support indoor/outdoor 3D detection out of box**
-
-  It directly supports popular indoor and outdoor 3D detection datasets, including ScanNet, SUNRGB-D, Waymo, nuScenes, Lyft, and KITTI.
-  For nuScenes dataset, we also support nuImages dataset.
-
-- **Natural integration with 2D detection**
-
-  All the about **40+ methods, 300+ models**, and modules supported in [MMDetection](https://github.com/open-mmlab/mmdetection/blob/master/docs/model_zoo.md) can be trained or used in this codebase.
-
-- **High efficiency**
-
-  It trains faster than other codebases. The main results are as below. Details can be found in [benchmark.md](./docs/benchmarks.md). We compare the number of samples trained per second (the higher, the better). The models that are not supported by other codebases are marked by `×`.
-
-  | Methods | MMDetection3D | [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) |[votenet](https://github.com/facebookresearch/votenet)| [Det3D](https://github.com/poodarchu/Det3D) |
-  |:-------:|:-------------:|:---------:|:-----:|:-----:|
-  | VoteNet | 358           | ×         |   77  | ×     |
-  | PointPillars-car| 141           | ×         |   ×  | 140     |
-  | PointPillars-3class| 107           |44     |   ×      | ×    |
-  | SECOND| 40           |30     |   ×      | ×    |
-  | Part-A2| 17           |14     |   ×      | ×    |
-
-Like [MMDetection](https://github.com/open-mmlab/mmdetection) and [MMCV](https://github.com/open-mmlab/mmcv), MMDetection3D can also be used as a library to support different projects on top of it.
-
-## License
-
-This project is released under the [Apache 2.0 license](LICENSE).
-
-## Changelog
-
-v0.8.0 was released in 30/11/2020.
-Please refer to [changelog.md](docs/changelog.md) for details and release history.
-
-## Benchmark and model zoo
-
-Supported methods and backbones are shown in the below table.
-Results and models are available in the [model zoo](docs/model_zoo.md).
-
-|                    | ResNet   | ResNeXt  | SENet    |PointNet++ | HRNet | RegNetX | Res2Net |
-|--------------------|:--------:|:--------:|:--------:|:---------:|:-----:|:--------:|:-----:|
-| SECOND             | ☐        | ☐        | ☐        | ✗         | ☐     | ✓        | ☐     |
-| PointPillars       | ☐        | ☐        | ☐        | ✗         | ☐     | ✓        | ☐     |
-| FreeAnchor         | ☐        | ☐        | ☐        | ✗         | ☐     | ✓        | ☐     |
-| VoteNet            | ✗        | ✗        | ✗        | ✓         | ✗     | ✗        | ✗     |
-| H3DNet            | ✗        | ✗        | ✗        | ✓         | ✗     | ✗        | ✗     |
-| 3DSSD            | ✗        | ✗        | ✗        | ✓         | ✗     | ✗        | ✗     |
-| Part-A2            | ☐        | ☐        | ☐        | ✗         | ☐     | ✓        | ☐     |
-| MVXNet             | ☐        | ☐        | ☐        | ✗         | ☐     | ✓        | ☐     |
-| CenterPoint        | ☐        | ☐        | ☐        | ✗         | ☐     | ✓        | ☐     |
-| SSN                | ☐        | ☐        | ☐        | ✗         | ☐     | ✓        | ☐     |
-
-Other features
-- [x] [Dynamic Voxelization](configs/carafe/README.md)
-
-**Note:** All the about **300 models, methods of 40+ papers** in 2D detection supported by [MMDetection](https://github.com/open-mmlab/mmdetection/blob/master/docs/model_zoo.md) can be trained or used in this codebase.
-
-## Installation
-
-Please refer to [install.md](docs/install.md) for installation and dataset preparation.
-
-## Get Started
-
-Please see [getting_started.md](docs/getting_started.md) for the basic usage of MMDetection3D. There are also tutorials for [finetuning models](docs/tutorials/finetune.md), [adding new dataset](docs/tutorials/new_dataset.md), [designing data pipeline](docs/tutorials/data_pipeline.md), [adding new modules](docs/tutorials/new_modules.md), and [waymo dataset](docs/tutorials/waymo.md).
-
-## Contributing
-
-We appreciate all contributions to improve MMDetection3D. Please refer to [CONTRIBUTING.md](.github/CONTRIBUTING.md) for the contributing guideline.
+# Eval
+To evaluate the model, run the following command:
+```
+cd CenterNet3d
+python tools/test.py ./configs/centernet3d.py ./work_dirs/centernet3d/epoch_25.pth
+```
+## Citation
+If you find this work useful in your research, please consider cite:
+```
+@misc{wang2020centernet3dan,
+    title={CenterNet3D:An Anchor free Object Detector for Autonomous Driving},
+    author={Guojun Wang and Bin Tian and Yunfeng Ai and Tong Xu and Long Chen and Dongpu Cao},
+    year={2020},
+    eprint={2007.07214},
+    archivePrefix={arXiv},
+    primaryClass={cs.CV}
+}
+```
 
 ## Acknowledgement
-
-MMDetection3D is an open source project that is contributed by researchers and engineers from various colleges and companies. We appreciate all the contributors as well as users who give valuable feedbacks.
-We wish that the toolbox and benchmark could serve the growing research community by providing a flexible toolkit to reimplement existing methods and develop their own new 3D detectors.
+The code is devloped based on mmdetection3d and mmdetecton, some part of codes are borrowed from SECOND and PointRCNN.  
+* [mmdetection3d](https://github.com/open-mmlab/mmdetection3d) 
+* [mmdetection](https://github.com/open-mmlab/mmdetection) 
+* [mmcv](https://github.com/open-mmlab/mmcv)
+* [second.pytorch](https://github.com/traveller59/second.pytorch)
+* [PointRCNN](https://github.com/sshaoshuai/PointRCNN)
